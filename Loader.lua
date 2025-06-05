@@ -1,37 +1,63 @@
--- VisualWave Executor Loader
+local Workspace = game:GetService("Workspace")
 
-local folderName = "VisualWave"
-local fileName = folderName .. "/custom_gui.lua"
-local rawUrl = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/gui/custom_gui.lua"
+-- Create main VisualWave folder
+local visualWaveFolder = Instance.new("Folder")
+visualWaveFolder.Name = "VisualWave"
+visualWaveFolder.Parent = Workspace
 
--- Check and create folder
-if not isfolder(folderName) then
-    makefolder(folderName)
-end
+-- Create gui folder inside VisualWave
+local guiFolder = Instance.new("Folder")
+guiFolder.Name = "gui"
+guiFolder.Parent = visualWaveFolder
 
--- Check if GUI file exists locally; if not, download and save
-if not isfile(fileName) then
-    print("Downloading GUI script...")
-    local success, response = pcall(function()
-        return game:HttpGet(rawUrl)
+-- Create modules folder inside VisualWave
+local modulesFolder = Instance.new("Folder")
+modulesFolder.Name = "modules"
+modulesFolder.Parent = visualWaveFolder
+
+-- Function to fetch source and create script instance
+local function createScript(url, name, parent, scriptType)
+    local success, source = pcall(function()
+        return game:HttpGet(url)
     end)
-
-    if success and response and #response > 0 then
-        writefile(fileName, response)
-        print("Downloaded and saved GUI script locally.")
-    else
-        error("Failed to download GUI script from GitHub.")
+    if not success then
+        warn("Failed to get source from URL:", url)
+        return
     end
-else
-    print("GUI script found locally.")
+    
+    local scriptInstance = Instance.new(scriptType)
+    scriptInstance.Name = name
+    scriptInstance.Source = source
+    scriptInstance.Parent = parent
 end
 
--- Load and run the GUI script
-local guiScript = readfile(fileName)
-local func, loadErr = loadstring(guiScript)
+-- URLs
+local urls = {
+    gui = {
+        custom_gui = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/gui/custom_gui.lua"
+    },
+    modules = {
+        Fly = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/modules/Fly.lua",
+        InfiniteJump = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/modules/InfiniteJump.lua"
+    },
+    main = {
+        MainScript = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/MainScript.lua"
+    }
+}
 
-if func then
-    func()
-else
-    error("Failed to load GUI script: " .. (loadErr or "unknown error"))
+-- Create gui scripts
+for name, url in pairs(urls.gui) do
+    createScript(url, name, guiFolder, "LocalScript")
 end
+
+-- Create modules scripts
+for name, url in pairs(urls.modules) do
+    createScript(url, name, modulesFolder, "ModuleScript")
+end
+
+-- Create main script directly under VisualWave folder
+for name, url in pairs(urls.main) do
+    createScript(url, name, visualWaveFolder, "LocalScript")
+end
+
+print("VisualWave scripts loaded into Workspace.")
