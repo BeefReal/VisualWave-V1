@@ -1,4 +1,3 @@
-loadstring([[
 local folderName = "VisualWave"
 local workspace = game:GetService("Workspace")
 
@@ -75,4 +74,3 @@ if guiScript then
 else
     warn("GUI script not found after downloading.")
 end
-]])()
