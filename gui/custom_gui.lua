@@ -1,5 +1,3 @@
--- Roblox GUI Script with Fly and Infinite Jump + Keybinds
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -7,20 +5,15 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Load Combat module (make sure Combat.lua returns a table with Fly() and InfiniteJump() functions)
-local Combat = loadstring(readfile("VisualWave/modules/Combat.lua"))()
-
--- Create ScreenGui
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "VisualWaveGUI"
+screenGui.Name = "CustomGUI"
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
--- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+mainFrame.Size = UDim2.new(0, 300, 0, 150)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
@@ -31,210 +24,146 @@ local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 12)
 mainCorner.Parent = mainFrame
 
--- Header
+local categoryColor = Color3.fromRGB(255, 200, 100)
+local panel = Instance.new("Frame")
+panel.Name = "ExploitPanel"
+panel.Size = UDim2.new(1, -20, 1, -20)
+panel.Position = UDim2.new(0, 10, 0, 10)
+panel.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+panel.BorderSizePixel = 0
+panel.Parent = mainFrame
+
+local panelCorner = Instance.new("UICorner")
+panelCorner.CornerRadius = UDim.new(0, 8)
+panelCorner.Parent = panel
+
 local header = Instance.new("Frame")
+header.Name = "Header"
 header.Size = UDim2.new(1, 0, 0, 40)
-header.BackgroundColor3 = Color3.fromRGB(255, 200, 100)
+header.Position = UDim2.new(0, 0, 0, 0)
+header.BackgroundColor3 = categoryColor
 header.BorderSizePixel = 0
-header.Parent = mainFrame
+header.Parent = panel
 
 local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 12)
+headerCorner.CornerRadius = UDim.new(0, 8)
 headerCorner.Parent = header
 
-local headerLabel = Instance.new("TextLabel")
-headerLabel.Size = UDim2.new(1, 0, 1, 0)
-headerLabel.BackgroundTransparency = 1
-headerLabel.Text = "Exploit"
-headerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-headerLabel.TextScaled = true
-headerLabel.Font = Enum.Font.GothamBold
-headerLabel.Parent = header
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "Title"
+titleLabel.Size = UDim2.new(1, 0, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Exploit"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = header
 
--- Button parameters
-local buttonWidth = 160
-local buttonHeight = 40
-local bindButtonWidth = 100
-local buttonSpacing = 15
-local startY = 60
+-- Helper to create buttons with keybinds
+local function createToggleWithBind(parent, text, positionY, callback)
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 120, 0, 35)
+    toggleBtn.Position = UDim2.new(0, 10, 0, positionY)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(65, 65, 75)
+    toggleBtn.BorderSizePixel = 0
+    toggleBtn.Text = text .. ": OFF"
+    toggleBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    toggleBtn.TextScaled = true
+    toggleBtn.Font = Enum.Font.Gotham
+    toggleBtn.Parent = parent
 
--- Table to store binds: key = function name, value = keycode Enum.KeyCode
-local binds = {
-    Fly = nil,
-    InfiniteJump = nil,
-}
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 6)
+    toggleCorner.Parent = toggleBtn
 
--- Table to store toggle states
-local toggled = {
-    Fly = false,
-    InfiniteJump = false,
-}
+    local bindBtn = Instance.new("TextButton")
+    bindBtn.Size = UDim2.new(0, 50, 0, 35)
+    bindBtn.Position = UDim2.new(0, 140, 0, positionY)
+    bindBtn.BackgroundColor3 = Color3.fromRGB(85, 85, 95)
+    bindBtn.BorderSizePixel = 0
+    bindBtn.Text = "Bind"
+    bindBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    bindBtn.TextScaled = true
+    bindBtn.Font = Enum.Font.Gotham
+    bindBtn.Parent = parent
 
--- Helper to create main toggle buttons
-local function createToggleButton(name, posY)
-    local btn = Instance.new("TextButton")
-    btn.Name = name .. "Button"
-    btn.Size = UDim2.new(0, buttonWidth, 0, buttonHeight)
-    btn.Position = UDim2.new(0, 10, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(65, 65, 75)
-    btn.BorderSizePixel = 0
-    btn.Text = name
-    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
-    btn.Font = Enum.Font.Gotham
-    btn.TextScaled = true
-    btn.Parent = mainFrame
+    local bindCorner = Instance.new("UICorner")
+    bindCorner.CornerRadius = UDim.new(0, 6)
+    bindCorner.Parent = bindBtn
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
+    local enabled = false
+    local bindKey = nil
+    local awaitingBind = false
 
-    return btn
-end
-
--- Helper to create bind buttons
-local function createBindButton(name, posY)
-    local btn = Instance.new("TextButton")
-    btn.Name = name .. "BindButton"
-    btn.Size = UDim2.new(0, bindButtonWidth, 0, buttonHeight)
-    btn.Position = UDim2.new(0, buttonWidth + 20, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-    btn.BorderSizePixel = 0
-    btn.Text = "Bind: None"
-    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btn.Font = Enum.Font.Gotham
-    btn.TextScaled = true
-    btn.Parent = mainFrame
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
-
-    return btn
-end
-
--- Create buttons and binds
-local flyBtn = createToggleButton("Fly", startY)
-local flyBindBtn = createBindButton("Fly", startY)
-
-local infJumpBtn = createToggleButton("Inf Jump", startY + buttonHeight + buttonSpacing)
-local infJumpBindBtn = createBindButton("InfiniteJump", startY + buttonHeight + buttonSpacing)
-
--- Update button colors based on toggle state
-local function updateToggleButton(btn, toggled)
-    if toggled then
-        btn.BackgroundColor3 = Color3.fromRGB(255, 200, 100)
-        btn.TextColor3 = Color3.fromRGB(0, 0, 0)
-    else
-        btn.BackgroundColor3 = Color3.fromRGB(65, 65, 75)
-        btn.TextColor3 = Color3.fromRGB(220, 220, 220)
-    end
-end
-
--- Toggle functionality
-local function toggleFeature(featureName)
-    toggled[featureName] = not toggled[featureName]
-
-    -- Call the appropriate function from Combat module
-    if featureName == "Fly" then
-        Combat.Fly(toggled.Fly)
-    elseif featureName == "InfiniteJump" then
-        Combat.InfiniteJump(toggled.InfiniteJump)
+    local function updateToggleText()
+        toggleBtn.Text = text .. (enabled and ": ON" or ": OFF")
+        toggleBtn.BackgroundColor3 = enabled and categoryColor or Color3.fromRGB(65, 65, 75)
+        toggleBtn.TextColor3 = enabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(220, 220, 220)
     end
 
-    -- Update button color
-    if featureName == "Fly" then
-        updateToggleButton(flyBtn, toggled.Fly)
-    elseif featureName == "InfiniteJump" then
-        updateToggleButton(infJumpBtn, toggled.InfiniteJump)
+    local function onToggle()
+        enabled = not enabled
+        updateToggleText()
+        callback(enabled)
     end
-end
 
--- Connect toggle buttons
-flyBtn.MouseButton1Click:Connect(function()
-    toggleFeature("Fly")
-end)
+    toggleBtn.MouseButton1Click:Connect(onToggle)
 
-infJumpBtn.MouseButton1Click:Connect(function()
-    toggleFeature("InfiniteJump")
-end)
-
--- Keybind setup
-local bindingKeyFor = nil -- nil or feature name when waiting for input
-
-local function isLetterKey(keyCode)
-    return keyCode >= Enum.KeyCode.A and keyCode <= Enum.KeyCode.Z
-end
-
--- When clicking the bind button, start listening for key press
-local function setupBindButton(bindBtn, featureName)
+    -- Bind button functionality
     bindBtn.MouseButton1Click:Connect(function()
-        bindBtn.Text = "Press a key..."
-        bindingKeyFor = featureName
+        if awaitingBind then
+            return
+        end
+        bindBtn.Text = "Press Key"
+        awaitingBind = true
+
+        local keyConn
+        keyConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                bindKey = input.KeyCode
+                bindBtn.Text = "Bind: " .. bindKey.Name
+                awaitingBind = false
+                keyConn:Disconnect()
+            end
+        end)
     end)
+
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if enabled and bindKey and input.KeyCode == bindKey then
+            onToggle()
+        end
+    end)
+
+    updateToggleText()
 end
 
-setupBindButton(flyBindBtn, "Fly")
-setupBindButton(infJumpBindBtn, "InfiniteJump")
+-- Import Combat module
+local Combat = require(script.Parent:WaitForChild("Combat"))
 
--- Listen for key input to assign binds
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if bindingKeyFor then
-        if input.UserInputType == Enum.UserInputType.Keyboard and isLetterKey(input.KeyCode) then
-            binds[bindingKeyFor] = input.KeyCode
-            if bindingKeyFor == "Fly" then
-                flyBindBtn.Text = "Bind: " .. input.KeyCode.Name
-            elseif bindingKeyFor == "InfiniteJump" then
-                infJumpBindBtn.Text = "Bind: " .. input.KeyCode.Name
-            end
-            bindingKeyFor = nil
-        else
-            -- Not a valid key, reset bind button text
-            if bindingKeyFor == "Fly" then
-                flyBindBtn.Text = "Bind: None"
-            elseif bindingKeyFor == "InfiniteJump" then
-                infJumpBindBtn.Text = "Bind: None"
-            end
-            bindingKeyFor = nil
-        end
+-- Setup toggles with callbacks
+createToggleWithBind(panel, "Fly", 50, function(enabled)
+    if enabled then
+        Combat.Fly()
     else
-        -- Check if pressed key matches any bind and toggle that feature
-        for featureName, keyCode in pairs(binds) do
-            if keyCode == input.KeyCode then
-                toggleFeature(featureName)
-            end
-        end
+        -- If you want to stop flying, consider implementing a stop function in Combat.Fly and call it here
+        -- For now, it will just keep flying because Combat.Fly returns a stop function in the revised Combat.lua
     end
 end)
 
--- GUI toggle with RightShift
-local showTween = TweenService:Create(mainFrame, 
-    TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-    {Size = UDim2.new(0, 300, 0, 200), BackgroundTransparency = 0.1}
-)
-local hideTween = TweenService:Create(mainFrame,
-    TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-    {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}
-)
-
-local function toggleGUI()
-    if mainFrame.Visible then
-        hideTween:Play()
-        hideTween.Completed:Wait()
-        mainFrame.Visible = false
+createToggleWithBind(panel, "Inf Jump", 100, function(enabled)
+    if enabled then
+        Combat.InfiniteJump()
     else
-        mainFrame.Visible = true
-        mainFrame.Size = UDim2.new(0, 0, 0, 0)
-        mainFrame.BackgroundTransparency = 1
-        showTween:Play()
-    end
-end
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.RightShift then
-        toggleGUI()
+        -- Similarly for InfiniteJump, add disconnect logic if needed
     end
 end)
 
-print("GUI loaded! Press Right Shift to toggle.")
+-- Show GUI when player presses RightControl
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        mainFrame.Visible = not mainFrame.Visible
+    end
+end)
