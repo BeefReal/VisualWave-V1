@@ -1,7 +1,8 @@
 local folderName = "VisualWave"
-
 local isfile = isfile or function(file)
-    local suc, res = pcall(function() return readfile(file) end)
+    local suc, res = pcall(function()
+        return readfile(file)
+    end)
     return suc and res ~= nil and res ~= ''
 end
 
@@ -9,89 +10,81 @@ local delfile = delfile or function(file)
     writefile(file, '')
 end
 
-local function downloadFile(path, func)
+local function downloadFile(path)
     if not isfile(path) then
-        local rawCommit = 'main' -- fallback commit
-        if isfile(folderName..'/profiles/commit.txt') then
-            rawCommit = readfile(folderName..'/profiles/commit.txt')
-        end
-
-        local url = 'https://raw.githubusercontent.com/BeefReal/VisualWave-V1/'..rawCommit..'/'..path
+        local url = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/main/" .. path
         local suc, res = pcall(function()
             return game:HttpGet(url, true)
         end)
         if not suc or res == '404: Not Found' then
-            error("Failed to download "..path..": "..tostring(res))
+            error("Failed to download file: " .. path .. "\nResponse: " .. tostring(res))
         end
-
-        -- Add watermark only to Lua scripts (optional)
-        if path:find('%.lua$') then
-            res = '--VisualWave cache watermark - remove to keep file after update\n' .. res
+        -- Add Vape-style watermark to .lua files to allow wiping
+        if path:find("%.lua$") then
+            res = "--This watermark is used to delete the file if its cached, remove it to make the file persist after updates.\n" .. res
         end
-
-        -- Make sure folder exists before writing file
-        local folderPath = path:match("(.+)/[^/]+$")
-        if folderPath and not isfolder(folderPath) then
-            makefolder(folderPath)
-        end
-
         writefile(path, res)
     end
-    return (func or readfile)(path)
+    return readfile(path)
 end
 
 local function wipeFolder(path)
     if not isfolder(path) then return end
-    for _, file in ipairs(listfiles(path)) do
-        -- skip loader itself (case-insensitive)
-        if not file:lower():find('loader') then
-            if isfile(file) then
-                local content = readfile(file)
-                if content:find('--VisualWave cache watermark') then
-                    delfile(file)
-                end
+    for _, file in pairs(listfiles(path)) do
+        if file:lower():find("loader") then
+            -- Do not delete loader.lua itself
+            continue
+        end
+        if isfile(file) then
+            local content = readfile(file)
+            if content:sub(1, 70):find("This watermark is used to delete the file") then
+                delfile(file)
             end
         end
     end
 end
 
--- Ensure folders exist
+-- Make sure folders exist
 local folders = {
     folderName,
-    folderName .. '/assets',
-    folderName .. '/guis',
-    folderName .. '/modules',
-    folderName .. '/profiles',
-    folderName .. '/libraries',
+    folderName .. "/modules",
+    folderName .. "/guis",
+    folderName .. "/assets"
 }
 
-for _, f in ipairs(folders) do
+for _, f in pairs(folders) do
     if not isfolder(f) then
         makefolder(f)
     end
 end
 
-if not shared.VisualWaveDeveloper then
-    local suc, webContent = pcall(function()
-        return game:HttpGet('https://github.com/BeefReal/VisualWave-V1', true)
-    end)
+-- Wipe old cached files (except loader.lua)
+wipeFolder(folderName)
+wipeFolder(folderName .. "/modules")
+wipeFolder(folderName .. "/guis")
+wipeFolder(folderName .. "/assets")
 
-    -- Try to extract commit hash from GitHub page source (simple heuristic)
-    local commit = webContent and webContent:match('currentOid":"([a-f0-9]+)"') or nil
-    commit = (commit and #commit == 40 and commit) or 'main'
+-- Write commit.txt (if you want versioning, set manually here or fetch from github)
+local commit = "main" -- or you can automate fetching commit sha if you want
+writefile(folderName .. "/commit.txt", commit)
 
-    local cachedCommit = isfile(folderName..'/profiles/commit.txt') and readfile(folderName..'/profiles/commit.txt') or ''
+-- Explicitly download all needed files
+local filesToDownload = {
+    folderName .. "/MainScript.lua",
+    folderName .. "/modules/Combat.lua",
+    folderName .. "/guis/custom_gui.lua",
+    -- Add other asset files if you have them, e.g.:
+    -- folderName .. "/assets/some_image.png",
+}
 
-    if commit == 'main' or cachedCommit ~= commit then
-        wipeFolder(folderName)
-        wipeFolder(folderName .. '/assets')
-        wipeFolder(folderName .. '/guis')
-        wipeFolder(folderName .. '/modules')
-        wipeFolder(folderName .. '/libraries')
-    end
-
-    writefile(folderName..'/profiles/commit.txt', commit)
+for _, path in pairs(filesToDownload) do
+    downloadFile(path)
 end
 
--- Load the main script
-return loadstring(downloadFile(folderName..'/main.lua'), 'main.lua')()
+-- Finally, load and run main.lua
+local mainCode = downloadFile(folderName .. "/main.lua")
+local mainFunc, err = loadstring(mainCode, "main.lua")
+if not mainFunc then
+    error("Failed to load main.lua: " .. tostring(err))
+end
+mainFunc()
