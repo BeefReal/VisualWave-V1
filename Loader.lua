@@ -1,32 +1,27 @@
 local folderName = "VisualWave"
-local fileName = "Loader.lua"
-local rawUrl = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/Loader.lua"
+local mainScriptName = "Main.lua" -- or whatever main entrypoint you want
 
+local rawUrlBase = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/"
+
+-- Make sure folder exists
 if not isfolder(folderName) then
     makefolder(folderName)
 end
 
-local filePath = folderName .. "/" .. fileName
+local mainFilePath = folderName .. "/" .. mainScriptName
 
-if not isfile(filePath) then
+-- Download main script if missing or update logic here
+if not isfile(mainFilePath) then
     local success, content = pcall(function()
-        return game:HttpGet(rawUrl)
+        return game:HttpGet(rawUrlBase .. mainScriptName)
     end)
-
     if success and content then
-        writefile(filePath, content)
+        writefile(mainFilePath, content)
     else
-        warn("Failed to download Loader.lua")
+        warn("Failed to download " .. mainScriptName)
         return
     end
 end
 
-local loaderScript = readfile(filePath)
-
-local success, err = pcall(function()
-    loadstring(loaderScript)()
-end)
-
-if not success then
-    warn("Error executing Loader.lua: " .. tostring(err))
-end
+local mainScript = readfile(mainFilePath)
+loadstring(mainScript)()
