@@ -27,12 +27,16 @@ Combat.Fly = function()
 
     local function getVelocity()
         local cam = workspace.CurrentCamera
-        local moveVec = Vector3.zero
+        local moveVec = Vector3.new(0, 0, 0)
         if directions.w then moveVec += cam.CFrame.LookVector end
         if directions.s then moveVec -= cam.CFrame.LookVector end
         if directions.a then moveVec -= cam.CFrame.RightVector end
         if directions.d then moveVec += cam.CFrame.RightVector end
-        return moveVec.Unit * speed
+        if moveVec.Magnitude > 0 then
+            return moveVec.Unit * speed
+        else
+            return Vector3.new(0, 0, 0)
+        end
     end
 
     local inputConn = UIS.InputBegan:Connect(function(input)
@@ -47,15 +51,17 @@ Combat.Fly = function()
         end
     end)
 
-    while flying and task.wait() do
-        bodyVelocity.Velocity = getVelocity()
-        bodyGyro.CFrame = workspace.CurrentCamera.CFrame
-    end
-
-    inputConn:Disconnect()
-    endConn:Disconnect()
-    bodyGyro:Destroy()
-    bodyVelocity:Destroy()
+    task.spawn(function()
+        while flying do
+            bodyVelocity.Velocity = getVelocity()
+            bodyGyro.CFrame = workspace.CurrentCamera.CFrame
+            task.wait()
+        end
+        inputConn:Disconnect()
+        endConn:Disconnect()
+        bodyGyro:Destroy()
+        bodyVelocity:Destroy()
+    end)
 end
 
 --// Infinite Jump Module
@@ -69,4 +75,3 @@ Combat.InfiniteJump = function()
 end
 
 return Combat
-
