@@ -1,88 +1,67 @@
 local folderName = "VisualWave"
-local isfile = isfile or function(file)
-    local suc, res = pcall(function()
-        return readfile(file)
-    end)
-    return suc and res ~= nil and res ~= ''
+
+-- File list with destination paths and raw URLs
+local files = {
+    ["MainScript.lua"] = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/MainScript.lua",
+    ["Loader.lua"] = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/Loader.lua",
+    ["modules/Combat.lua"] = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/modules/Combat.lua",
+    ["gui/custom_gui.lua"] = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/gui/custom_gui.lua",
+    ["assets/Logo.png"] = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/refs/heads/main/assets/Logo.png",
+}
+
+-- Helper to check if folder exists, else create it
+local function ensureFolder(path)
+    if not isfolder(path) then
+        makefolder(path)
+    end
 end
 
-local delfile = delfile or function(file)
-    writefile(file, '')
-end
+-- Ensure all necessary folders exist
+ensureFolder(folderName)
+ensureFolder(folderName .. "/modules")
+ensureFolder(folderName .. "/gui")
+ensureFolder(folderName .. "/assets")
 
-local function downloadFile(path)
-    if not isfile(path) then
-        local url = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/main/" .. path
-        local suc, res = pcall(function()
-            return game:HttpGet(url, true)
+-- Download files if missing or outdated
+for relativePath, url in pairs(files) do
+    local fullPath = folderName .. "/" .. relativePath
+
+    -- Create folder structure for file if needed
+    local folderPath = fullPath:match("(.*/)")
+    if folderPath then
+        ensureFolder(folderPath:sub(1, -2)) -- remove trailing slash
+    end
+
+    local needsDownload = false
+    if not isfile(fullPath) then
+        needsDownload = true
+    else
+        -- Optional: Add logic here to check for updates (e.g. hash comparison)
+        -- For simplicity, just keep the file if it exists
+    end
+
+    if needsDownload then
+        local success, content = pcall(function()
+            return game:HttpGet(url)
         end)
-        if not suc or res == '404: Not Found' then
-            error("Failed to download file: " .. path .. "\nResponse: " .. tostring(res))
-        end
-        if path:find("%.lua$") then
-            res = "--This watermark is used to delete the file if its cached, remove it to make the file persist after updates.\n" .. res
-        end
-        writefile(path, res)
-    end
-    return readfile(path)
-end
-
-local function wipeFolder(path)
-    if not isfolder(path) then return end
-    for _, file in pairs(listfiles(path)) do
-        if file:lower():find("loader") then
-            continue
-        end
-        if isfile(file) then
-            local content = readfile(file)
-            if content:sub(1, 70):find("This watermark is used to delete the file") then
-                delfile(file)
-            end
+        if success and content then
+            writefile(fullPath, content)
+        else
+            warn("Failed to download: " .. url)
         end
     end
 end
 
--- Ensure folders exist
-local folders = {
-    folderName,
-    folderName .. "/modules",
-    folderName .. "/guis",
-    folderName .. "/assets"
-}
-
-for _, f in pairs(folders) do
-    if not isfolder(f) then
-        makefolder(f)
+-- Run the main script
+local mainScriptPath = folderName .. "/MainScript.lua"
+if isfile(mainScriptPath) then
+    local mainScript = readfile(mainScriptPath)
+    local func, err = loadstring(mainScript)
+    if func then
+        func()
+    else
+        warn("Failed to load MainScript.lua: " .. tostring(err))
     end
+else
+    warn("MainScript.lua not found!")
 end
-
--- Wipe old cached files (except loader.lua)
-wipeFolder(folderName)
-wipeFolder(folderName .. "/modules")
-wipeFolder(folderName .. "/guis")
-wipeFolder(folderName .. "/assets")
-
--- Commit version (hardcoded or fetched)
-local commit = "main"
-writefile(folderName .. "/commit.txt", commit)
-
--- Files to download
-local filesToDownload = {
-    folderName .. "/MainScript.lua",
-    folderName .. "/modules/Combat.lua",
-    folderName .. "/guis/custom_gui.lua",
-    -- Add your assets here if any, e.g.:
-    -- folderName .. "/assets/image.png",
-}
-
-for _, path in pairs(filesToDownload) do
-    downloadFile(path)
-end
-
--- Load and execute MainScript.lua (the entrypoint)
-local mainCode = downloadFile(folderName .. "/MainScript.lua")
-local mainFunc, err = loadstring(mainCode, "MainScript.lua")
-if not mainFunc then
-    error("Failed to load MainScript.lua: " .. tostring(err))
-end
-mainFunc()
