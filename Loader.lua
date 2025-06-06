@@ -19,7 +19,6 @@ local function downloadFile(path)
         if not suc or res == '404: Not Found' then
             error("Failed to download file: " .. path .. "\nResponse: " .. tostring(res))
         end
-        -- Add Vape-style watermark to .lua files to allow wiping
         if path:find("%.lua$") then
             res = "--This watermark is used to delete the file if its cached, remove it to make the file persist after updates.\n" .. res
         end
@@ -32,7 +31,6 @@ local function wipeFolder(path)
     if not isfolder(path) then return end
     for _, file in pairs(listfiles(path)) do
         if file:lower():find("loader") then
-            -- Do not delete loader.lua itself
             continue
         end
         if isfile(file) then
@@ -44,7 +42,7 @@ local function wipeFolder(path)
     end
 end
 
--- Make sure folders exist
+-- Ensure folders exist
 local folders = {
     folderName,
     folderName .. "/modules",
@@ -64,27 +62,27 @@ wipeFolder(folderName .. "/modules")
 wipeFolder(folderName .. "/guis")
 wipeFolder(folderName .. "/assets")
 
--- Write commit.txt (if you want versioning, set manually here or fetch from github)
-local commit = "main" -- or you can automate fetching commit sha if you want
+-- Commit version (hardcoded or fetched)
+local commit = "main"
 writefile(folderName .. "/commit.txt", commit)
 
--- Explicitly download all needed files
+-- Files to download
 local filesToDownload = {
     folderName .. "/MainScript.lua",
     folderName .. "/modules/Combat.lua",
     folderName .. "/guis/custom_gui.lua",
-    -- Add other asset files if you have them, e.g.:
-    -- folderName .. "/assets/some_image.png",
+    -- Add your assets here if any, e.g.:
+    -- folderName .. "/assets/image.png",
 }
 
 for _, path in pairs(filesToDownload) do
     downloadFile(path)
 end
 
--- Finally, load and run main.lua
-local mainCode = downloadFile(folderName .. "/main.lua")
-local mainFunc, err = loadstring(mainCode, "main.lua")
+-- Load and execute MainScript.lua (the entrypoint)
+local mainCode = downloadFile(folderName .. "/MainScript.lua")
+local mainFunc, err = loadstring(mainCode, "MainScript.lua")
 if not mainFunc then
-    error("Failed to load main.lua: " .. tostring(err))
+    error("Failed to load MainScript.lua: " .. tostring(err))
 end
 mainFunc()
