@@ -1,5 +1,3 @@
--- Combat.lua
-
 local Combat = {}
 
 --// Fly Module
@@ -51,27 +49,45 @@ Combat.Fly = function()
         end
     end)
 
-    task.spawn(function()
+    -- Run flying loop in a coroutine so it doesn't block
+    local flyingLoop = coroutine.create(function()
         while flying do
             bodyVelocity.Velocity = getVelocity()
             bodyGyro.CFrame = workspace.CurrentCamera.CFrame
             task.wait()
         end
+    end)
+    coroutine.resume(flyingLoop)
+
+    -- Return a function to stop flying if needed
+    return function()
+        flying = false
         inputConn:Disconnect()
         endConn:Disconnect()
         bodyGyro:Destroy()
         bodyVelocity:Destroy()
-    end)
+    end
 end
 
 --// Infinite Jump Module
 Combat.InfiniteJump = function()
     local UIS = game:GetService("UserInputService")
-    local humanoid = game.Players.LocalPlayer.Character:WaitForChild("Humanoid")
+    local player = game.Players.LocalPlayer
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid") or nil
+    if not humanoid then
+        player.CharacterAdded:Wait()
+        humanoid = player.Character:WaitForChild("Humanoid")
+    end
 
-    UIS.JumpRequest:Connect(function()
+    local jumpConn
+    jumpConn = UIS.JumpRequest:Connect(function()
         humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end)
+
+    -- Return a function to disconnect infinite jump if needed
+    return function()
+        jumpConn:Disconnect()
+    end
 end
 
 return Combat
