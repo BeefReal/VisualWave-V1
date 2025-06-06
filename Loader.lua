@@ -22,4 +22,11 @@ if not isfile(filePath) then
 end
 
 local loaderScript = readfile(filePath)
-loadstring(loaderScript)()
+
+local success, err = pcall(function()
+    loadstring(loaderScript)()
+end)
+
+if not success then
+    warn("Error executing Loader.lua: " .. tostring(err))
+end
