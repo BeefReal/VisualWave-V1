@@ -1,61 +1,97 @@
 local folderName = "VisualWave"
 
--- Base URL of your raw GitHub repo (adjust branch if needed)
-local baseRawUrl = "https://raw.githubusercontent.com/BeefReal/VisualWave-V1/main/"
+local isfile = isfile or function(file)
+    local suc, res = pcall(function() return readfile(file) end)
+    return suc and res ~= nil and res ~= ''
+end
 
--- List all files you want to download, with relative paths
-local filesToDownload = {
-    "assets/Logo.png",
-    "gui/custom_gui.lua",
-    "modules/combat.lua",
-    "mainScript.lua",  -- main entrypoint script (adjust name as needed)
+local delfile = delfile or function(file)
+    writefile(file, '')
+end
+
+local function downloadFile(path, func)
+    if not isfile(path) then
+        local rawCommit = 'main' -- fallback commit
+        if isfile(folderName..'/profiles/commit.txt') then
+            rawCommit = readfile(folderName..'/profiles/commit.txt')
+        end
+
+        local url = 'https://raw.githubusercontent.com/BeefReal/VisualWave-V1/'..rawCommit..'/'..path
+        local suc, res = pcall(function()
+            return game:HttpGet(url, true)
+        end)
+        if not suc or res == '404: Not Found' then
+            error("Failed to download "..path..": "..tostring(res))
+        end
+
+        -- Add watermark only to Lua scripts (optional)
+        if path:find('%.lua$') then
+            res = '--VisualWave cache watermark - remove to keep file after update\n' .. res
+        end
+
+        -- Make sure folder exists before writing file
+        local folderPath = path:match("(.+)/[^/]+$")
+        if folderPath and not isfolder(folderPath) then
+            makefolder(folderPath)
+        end
+
+        writefile(path, res)
+    end
+    return (func or readfile)(path)
+end
+
+local function wipeFolder(path)
+    if not isfolder(path) then return end
+    for _, file in ipairs(listfiles(path)) do
+        -- skip loader itself (case-insensitive)
+        if not file:lower():find('loader') then
+            if isfile(file) then
+                local content = readfile(file)
+                if content:find('--VisualWave cache watermark') then
+                    delfile(file)
+                end
+            end
+        end
+    end
+end
+
+-- Ensure folders exist
+local folders = {
+    folderName,
+    folderName .. '/assets',
+    folderName .. '/guis',
+    folderName .. '/modules',
+    folderName .. '/profiles',
+    folderName .. '/libraries',
 }
 
--- Helper function to create nested folders if they don't exist
-local function ensureFolders(path)
-    local parts = {}
-    for part in string.gmatch(path, "[^/]+") do
-        table.insert(parts, part)
-        local subPath = table.concat(parts, "/")
-        if not isfolder(folderName .. "/" .. subPath) then
-            makefolder(folderName .. "/" .. subPath)
-        end
+for _, f in ipairs(folders) do
+    if not isfolder(f) then
+        makefolder(f)
     end
 end
 
--- Download each file
-for _, relativePath in ipairs(filesToDownload) do
-    local fullPath = folderName .. "/" .. relativePath
-    
-    -- Create folders if needed (only for paths with folders)
-    local folderPath = relativePath:match("(.+)/[^/]+$")
-    if folderPath then
-        ensureFolders(folderPath)
+if not shared.VisualWaveDeveloper then
+    local suc, webContent = pcall(function()
+        return game:HttpGet('https://github.com/BeefReal/VisualWave-V1', true)
+    end)
+
+    -- Try to extract commit hash from GitHub page source (simple heuristic)
+    local commit = webContent and webContent:match('currentOid":"([a-f0-9]+)"') or nil
+    commit = (commit and #commit == 40 and commit) or 'main'
+
+    local cachedCommit = isfile(folderName..'/profiles/commit.txt') and readfile(folderName..'/profiles/commit.txt') or ''
+
+    if commit == 'main' or cachedCommit ~= commit then
+        wipeFolder(folderName)
+        wipeFolder(folderName .. '/assets')
+        wipeFolder(folderName .. '/guis')
+        wipeFolder(folderName .. '/modules')
+        wipeFolder(folderName .. '/libraries')
     end
-    
-    -- Download the file if missing or optionally always update
-    local shouldDownload = not isfile(fullPath)
-    
-    if shouldDownload then
-        local url = baseRawUrl .. relativePath
-        local success, content = pcall(function()
-            return game:HttpGet(url)
-        end)
-        
-        if success and content then
-            writefile(fullPath, content)
-            print("Downloaded " .. relativePath)
-        else
-            warn("Failed to download " .. relativePath)
-        end
-    end
+
+    writefile(folderName..'/profiles/commit.txt', commit)
 end
 
--- Finally load and run your main script
-local mainScriptPath = folderName .. "/main.lua"  -- adjust if needed
-if isfile(mainScriptPath) then
-    local mainScript = readfile(mainScriptPath)
-    loadstring(mainScript)()
-else
-    warn("Main script not found: " .. mainScriptPath)
-end
+-- Load the main script
+return loadstring(downloadFile(folderName..'/main.lua'), 'main.lua')()
